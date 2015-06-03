@@ -53,7 +53,7 @@ get "/scrape/jd/:city/:category" do
 
 		rows = "LAT, LNG, TITLE, CITY, EXACT_ADDRESS, PHONE1, PHONE2, VERIFIED, ESTABLISHED IN, RATING\n"
 
-		fp = File.new("./tmp/#{params['city']}_#{category_file_name}.csv", "w")
+		fp = File.new("./log/#{params['city']}_#{category_file_name}.csv", "w")
 
 		if html_doc.css("#srchpagination a:nth-last-child(2)") and html_doc.css("#srchpagination a:nth-last-child(2)").text
 			pages = html_doc.css("#srchpagination a:nth-last-child(2)").text.to_i
