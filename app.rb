@@ -39,7 +39,6 @@ get "/scrape/jd/:city/:category" do
 	response = http.request(request)
 	if response and response.body 
 		parsed_body = JSON.parse response.body
-		binding.pry
 		if parsed_body["results"] and parsed_body["results"][0] and  parsed_body["results"][0]["oval"] and (parsed_body["results"][0]["oval"].gsub(/[\s\t\n]/,'') == category_match_name)
 			# Category = "Book Shops" compared with "BookShops" after trimming white spaces
 			category_id = parsed_body["results"][0]["id"] 
