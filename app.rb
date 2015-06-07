@@ -13,7 +13,12 @@ require 'sinatra/base'
 CATEGORY_SUGGEST_API_URL = "http://www.justdial.com/autosuggest.php?cases=what&search="
 # http://www.justdial.com/Bangalore/SAP-Training-Institutes
 get '/' do
+	"Go to /files for all the files"
 	"Go to /scrape/jd/CityName/CategoryName"
+end
+
+get '/files' do
+	Dir.entries('./public').map { |e| "<p><a href=\"#{e}\">#{e}</a></p>"  }
 end
 
 get "/scrape/jd/:city/:category" do
@@ -44,21 +49,22 @@ get "/scrape/jd/:city/:category" do
 			category_id = parsed_body["results"][0]["id"] 
 		end
 	end
+	puts "category-id: #{category_id}"
 	if category_id
 		fetching_url = "http://www.justdial.com/#{city}/#{category}/ct-#{category_id}/page-1"
 		agent = Mechanize.new
 		html = agent.get(fetching_url).body
 		html_doc = Nokogiri::HTML(html)
-		rows = "Lat, Lng, Title, Area, Phone1, Phone2, Verified, EstdIn, Rating\n"
+		rows = "LATITUDE, LONGITUDE, TITLE, LOCALITY, EXACT ADDRESS, PHONE1, PHONE2, VERIFIED BY JD, ESTABLISHED IN, RATING\n"
 
-		rows = "LAT, LNG, TITLE, CITY, EXACT_ADDRESS, PHONE1, PHONE2, VERIFIED, ESTABLISHED IN, RATING\n"
-
-		fp = File.new("./log/#{params['city']}_#{category_file_name}.csv", "w")
+		fp = File.new("./public/#{params['city']}_#{category_file_name}.csv", "w")
 
 		if html_doc.css("#srchpagination a:nth-last-child(2)") and html_doc.css("#srchpagination a:nth-last-child(2)").text
 			pages = html_doc.css("#srchpagination a:nth-last-child(2)").text.to_i
+			pages == 0 ? pages = 1 : pages = pages
 		end
 		
+		puts "Pages: #{pages}"
 		i = 1
 		while (pages > 0) and (i <= pages)
 			rows += "\n"
@@ -83,10 +89,18 @@ get "/scrape/jd/:city/:category" do
 			main_els.each do |el|
 				lat_lng, title, fetched_city, exact_address, phone1, phone2, verified, estdIn, rating = "'', '', ", "", "", "", "", "", false, "", ""
 				if  el.css(".rsmap") and el.css(".rsmap").length > 0
-					puts el.css(".rsmap").length
 					lat_lng = el.css(".rsmap")[0]["onclick"]
-					lat_lng = lat_lng.gsub(/view_map.*#{city}', /,'').gsub(/ 'bcard.*/,'').gsub(/'/,'')
-					
+					lat_lng_c = lat_lng.scan(/(', '[^',]*', ')/) 
+					if lat_lng_c.length > 0 and lat_lng_c[1] and lat_lng_c[1].length > 0
+						llstart = lat_lng_c[1][0]
+						if llstart
+							llc = lat_lng.scan(/(#{llstart}.*bcard)/) 
+							lat_lng = llc[0][0].gsub(/', 'bcard.*/,'').gsub(/', '/,',').gsub(/^[,]+/,'') if llc.length > 0
+							lat_lng += ","
+						end
+					end
+
+					#lat_lng = lat_lng.gsub(/view_map.*#{city}', /,'').gsub(/ 'bcard.*/,'').gsub(/'/,'')
 				end
 
 				title = el.css(".jcn a").first["title"] if el.css(".jcn a") and el.css(".jcn a").first
@@ -116,8 +130,10 @@ get "/scrape/jd/:city/:category" do
 			i += 1
 		end
 
+		"Successfully Crawled #{category_file_name} of #{city}"
 		fp.puts("#{rows}\n\n")
 		fp.close
+		redirect to('/files')
 	else
 		puts "No Matching City or Category...Please check"
 	end
